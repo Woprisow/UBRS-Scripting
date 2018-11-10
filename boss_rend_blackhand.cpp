@@ -9,7 +9,7 @@
 #include "Player.h"
 #include "blackrock_spire.h"
 
-#define rendDoorGUID 87845
+#define rendDoorID 164726
 
 enum Spells
 {
@@ -64,6 +64,14 @@ struct Wave
     float  z_pos;
     float  o_pos;
 	Creature* summ;
+};
+
+static Wave Wave1[] =
+{
+	{ 10447, 202.511002f, -421.3007f, 110.987f, 0.6632251f, new Creature },
+	{ 10442, 201.007996f, -416.648f, 110.974f, 2.9147f, new Creature },
+	{ 10442, 204.015f, -418.4499f, 110.9889f, 1.727876f, new Creature },
+	{ 10442, 203.141998f, -423.9989f, 110.986f, 1.727876f, new Creature }
 };
 
 static Wave Wave2[]= // 22 sec
@@ -141,8 +149,7 @@ enum Events
     EVENT_TELEPORT_2                = 29,
     EVENT_WHIRLWIND                 = 30,
     EVENT_CLEAVE                    = 31,
-    EVENT_MORTAL_STRIKE             = 32,
-	EVENT_WAIT_FOR_DEATH_OF_ADDS1   = 33,
+    EVENT_MORTAL_STRIKE             = 32
 };
 
 class boss_rend_blackhand : public CreatureScript
@@ -158,12 +165,9 @@ public:
         {
             _Reset();
             gythEvent = false;
-            victorGUID = 0;
+			summGyth = false;  //Causing 4x spawn on false reset?
+            victorGUID = 0; 
             portcullisGUID = 0;
-
-			//Open the entrance gate
-			if (GameObject* portcullis = me->GetMap()->GetGameObject(rendDoorGUID))
-				portcullis->UseDoorOrButton();
         }
 
         void EnterCombat(Unit* /*who*/)
@@ -179,10 +183,6 @@ public:
             _JustDied();
             if (Creature* victor = me->FindNearestCreature(NPC_LORD_VICTOR_NEFARIUS, 75.0f, true))
                 victor->AI()->SetData(1, 2);
-
-			//Open the entrance gate
-			if (GameObject* portcullis = me->GetMap()->GetGameObject(rendDoorGUID))
-				portcullis->UseDoorOrButton();
         }
 
         void SetData(uint32 type, uint32 data)
@@ -192,6 +192,7 @@ public:
                 if (!gythEvent)
                 {
                     gythEvent = true;
+					summGyth = false;
 
                     if (Creature* victor = me->FindNearestCreature(NPC_LORD_VICTOR_NEFARIUS, 5.0f, true))
                         victorGUID = victor->GetGUID();
@@ -201,6 +202,10 @@ public:
 
                     events.ScheduleEvent(EVENT_TURN_TO_PLAYER, 0);
                     events.ScheduleEvent(EVENT_START_1, 1000);
+
+					//Close the entrance gate
+					if (GameObject* portcullis = me->FindNearestGameObject(rendDoorID, 500.0f))
+						portcullis->UseDoorOrButton();
                 }
             }
         }
@@ -234,10 +239,7 @@ public:
                             if (Creature* victor = ObjectAccessor::GetCreature(*me, victorGUID))
                                 victor->AI()->Talk(SAY_NEFARIUS_0);
                             events.ScheduleEvent(EVENT_START_2, 4000);
-
-							//Close the entrance gate
-							if (GameObject* portcullis = me->GetMap()->GetGameObject(rendDoorGUID))
-								portcullis->UseDoorOrButton();
+							//events.ScheduleEvent(EVENT_WAVES_COMPLETE_TEXT_3, 4000); //Testing only
 
                             break;
                         case EVENT_START_2:
@@ -251,7 +253,7 @@ public:
                                 victor->AI()->Talk(SAY_NEFARIUS_1);
                             events.ScheduleEvent(EVENT_WAVE_1, 2000);
                             events.ScheduleEvent(EVENT_TURN_TO_REND, 4000);
-							events.ScheduleEvent(EVENT_WAVES_TEXT_1, 20000);		
+							events.ScheduleEvent(EVENT_WAVES_TEXT_1, 22000);		
                             break;
                         case EVENT_TURN_TO_REND:
                             if (Creature* victor = ObjectAccessor::GetCreature(*me, victorGUID))
@@ -290,7 +292,7 @@ public:
                             events.ScheduleEvent(EVENT_TURN_TO_FACING_1, 4000);
                             events.ScheduleEvent(EVENT_WAVES_EMOTE_1, 5000);
                             events.ScheduleEvent(EVENT_WAVE_2, 2000);
-                            events.ScheduleEvent(EVENT_WAVES_TEXT_2, 20000);
+                            events.ScheduleEvent(EVENT_WAVES_TEXT_2, 50000);
                             break;
                         case EVENT_WAVES_TEXT_2:
                             events.ScheduleEvent(EVENT_TURN_TO_PLAYER, 0);
@@ -298,7 +300,7 @@ public:
                                 victor->AI()->Talk(SAY_NEFARIUS_3);
                             events.ScheduleEvent(EVENT_TURN_TO_FACING_1, 4000);
                             events.ScheduleEvent(EVENT_WAVE_3, 2000);
-                            events.ScheduleEvent(EVENT_WAVES_TEXT_3, 20000);
+                            events.ScheduleEvent(EVENT_WAVES_TEXT_3, 49000);
                             break;
                         case EVENT_WAVES_TEXT_3:
                             events.ScheduleEvent(EVENT_TURN_TO_PLAYER, 0);
@@ -306,14 +308,14 @@ public:
                                 victor->AI()->Talk(SAY_NEFARIUS_4);
                             events.ScheduleEvent(EVENT_TURN_TO_FACING_1, 4000);
                             events.ScheduleEvent(EVENT_WAVE_4, 2000);
-                            events.ScheduleEvent(EVENT_WAVES_TEXT_4, 20000);
+                            events.ScheduleEvent(EVENT_WAVES_TEXT_4, 60000);
                             break;
                         case EVENT_WAVES_TEXT_4:
                             Talk(SAY_BLACKHAND_1);
                             events.ScheduleEvent(EVENT_WAVES_EMOTE_2, 4000);
                             events.ScheduleEvent(EVENT_TURN_TO_FACING_3, 8000);
                             events.ScheduleEvent(EVENT_WAVE_5, 2000);
-                            events.ScheduleEvent(EVENT_WAVES_TEXT_5, 20000);
+                            events.ScheduleEvent(EVENT_WAVES_TEXT_5, 27000);
                             break;
                         case EVENT_WAVES_TEXT_5:
                             events.ScheduleEvent(EVENT_TURN_TO_PLAYER, 0);
@@ -341,7 +343,7 @@ public:
                             if (Creature* victor = ObjectAccessor::GetCreature(*me, victorGUID))
                                 victor->AI()->Talk(SAY_NEFARIUS_8);
                             events.ScheduleEvent(EVENT_PATH_NEFARIUS, 1000);
-                            events.ScheduleEvent(EVENT_PATH_REND, 1000);
+                            //events.ScheduleEvent(EVENT_PATH_REND, 1000);
                             break;
                         case EVENT_PATH_NEFARIUS:
                             if (Creature* victor = ObjectAccessor::GetCreature(*me, victorGUID))
@@ -349,31 +351,40 @@ public:
                             break;
                         case EVENT_PATH_REND:
                             me->GetMotionMaster()->MovePath(REND_PATH_1, false);
-							events.ScheduleEvent(EVENT_TELEPORT_2, 5000); //Call TP2 event after 5sec - Heli
+							events.ScheduleEvent(EVENT_TELEPORT_1, 14000); 
                             break;
-
-							//NOT USED ANYMORE
                         case EVENT_TELEPORT_1:
+							//me->StopMoving();
                             me->NearTeleportTo(194.2993f, -474.0814f, 121.4505f, -0.01225555f);
-                            events.ScheduleEvent(EVENT_TELEPORT_2, 50000);
+                            events.ScheduleEvent(EVENT_TELEPORT_2, 1000);
                             break;
 
                         case EVENT_TELEPORT_2:
-                            me->NearTeleportTo(216.485f, -434.93f, 110.888f, -0.01225555f);
-                            me->SummonCreature(NPC_GYTH, 211.762f, -397.5885f, 111.1817f, 4.747295f);
+                           
+							if (!summGyth) {
+								//me->NearTeleportTo(216.485f, -434.93f, 110.888f, -0.01225555f);
+								me->SummonCreature(NPC_GYTH, 211.762f, -397.5885f, 111.1817f, 4.747295f);
+								summGyth = true;
+							}
                             break;
 
                         case EVENT_WAVE_1:
+
+							array_length = std::end(Wave1) - std::begin(Wave1);
+							for (int i = 0; i < array_length; i++) {
+								// spawn wave
+								Wave1[i].summ = me->SummonCreature(Wave1[i].entry, Wave1[i].x_pos, Wave1[i].y_pos, Wave1[i].z_pos, Wave1[i].o_pos);
+							}
+
                             if (GameObject* portcullis = me->GetMap()->GetGameObject(portcullisGUID))
                                 portcullis->UseDoorOrButton();
 
                             // move wave 1 
-							for (int i = 0; i < 4; i++) {
+							for (int i = 0; i < array_length; i++) {
+								// move wave
+
 								if (Unit* target = me->SelectNearestPlayer(500.0f))
-								{
-									if (Creature* add = ObjectAccessor::GetCreature(*me, instance->GetData64(i+100)))
-										add->AI()->AttackStart(target);
-								}
+									Wave1[i].summ->AI()->AttackStart(target);
 							}
 
                             break;
@@ -508,6 +519,7 @@ public:
 
         private:
             bool   gythEvent;
+			bool summGyth;
             uint64 victorGUID;
             uint64 portcullisGUID;
 			int array_length = 0;
